@@ -67,7 +67,7 @@ const Home = () => {
         const accounts = await (window as any).ethereum.request({ method: 'eth_accounts' });
         if (accounts.length > 0) {
           setWalletConnected(true);
-          setUserAddress(accounts[0]);
+          setUserAddress(ethers.getAddress(accounts[0]));
           await switchNetwork(selectedChain);
         }
       } catch (error) {
@@ -85,7 +85,8 @@ const Home = () => {
     try {
       const accounts = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
       setWalletConnected(true);
-      setUserAddress(accounts[0]);
+      setUserAddress(ethers.getAddress(accounts[0]));
+      console.log(accounts[0]);
       await switchNetwork(selectedChain);
     } catch (error) {
       console.error("Error connecting wallet: ", error);
