@@ -61,7 +61,8 @@ class BridgeService {
   public async sendBurnTask(amount: BigInt, chain: string, user: string) {
     const calldata = this.buildCalldata('burn', [user, amount]);
     const response = await this.relayTransaction(chain, calldata);
-    await this.saveBridgeRecord(user, chain, response.taskId, amount, chain);
+    const targetChain = this.getTargetChain(chain);
+    await this.saveBridgeRecord(user, chain, response.taskId, amount, targetChain);
   }
 
   public async sendMintTask(amount: BigInt, chain: string, user: string) {
@@ -179,8 +180,12 @@ class BridgeService {
   }
 
   public async updateUserTasks(user: string) {
-    const records = await BridgeRecord.find({ user });
-    await this.updateTaskStatus(records);
+    try {
+      const records = await BridgeRecord.find({ user });
+      await this.updateTaskStatus(records);
+    } catch (error: any) {
+      console.error('Error updating user tasks:', error.message);
+    }
   }
 
   private async updateTaskStatus(records: IBridgeRecord[]) {
