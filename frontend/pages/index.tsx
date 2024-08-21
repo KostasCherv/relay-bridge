@@ -121,8 +121,8 @@ const Home = () => {
     try {
       const body = {
         user: userAddress,
-        chain: selectedChain,
-        amount: amount,
+        chain: selectedChain.replace('Sepolia', ''),
+        amount: parseInt(ethers.parseEther(amount).toString()),
       }
       const response = await axios.post('https://relay-bridge-production.up.railway.app/api/bridge/burn', body);
       if (response.status === 200) {
