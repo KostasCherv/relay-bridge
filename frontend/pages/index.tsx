@@ -50,6 +50,7 @@ const Home = () => {
   const [userAddress, setUserAddress] = useState<string>('');
   const [transactions, setTransactions] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
     checkWalletConnection();
@@ -86,7 +87,6 @@ const Home = () => {
       const accounts = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
       setWalletConnected(true);
       setUserAddress(ethers.getAddress(accounts[0]));
-      console.log(accounts[0]);
       await switchNetwork(selectedChain);
     } catch (error) {
       console.error("Error connecting wallet: ", error);
@@ -114,6 +114,12 @@ const Home = () => {
       alert('Please enter an amount to bridge');
       return;
     }
+    const latestTransaction = transactions.sort((a, b) => b.createdAt - a.createdAt)[0];
+    if (latestTransaction && Date.now() - new Date(latestTransaction.createdAt).getTime() < 60000) {
+      const diff = Date.now() - new Date(latestTransaction.createdAt).getTime()
+      alert('Please wait at least one minute between transactions. Try again in ' + (60 - Math.floor(diff / 1000)) + ' seconds.');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -126,7 +132,9 @@ const Home = () => {
       }
       const response = await axios.post('https://relay-bridge-production.up.railway.app/api/bridge/burn', body);
       if (response.status === 200) {
-        alert('Tokens bridged successfully!');
+        setMsg("Bridge Request Sent!");
+        setTimeout(() => setMsg(null), 5000);
+        await fetchTransactions()
       } else {
         alert(response.data);
       }
@@ -149,9 +157,9 @@ const Home = () => {
   }, [userAddress]);
   
   useEffect(() => {
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       if (transactions.filter((tx) => tx.status === 'pending').length > 0) {
-        fetchTransactions();
+        await fetchTransactions();
       }
     }, 2000);
     return () => clearInterval(interval);
@@ -230,7 +238,8 @@ const Home = () => {
             >
               {loading ? <CircularProgress size={24} /> : 'Bridge Tokens'}
             </Button>
-            {error && <Alert severity="error">{error}</Alert>}
+              {error && <Alert severity="error">{error}</Alert>}
+              {msg && <Alert severity="success">{msg}</Alert>}
             <Typography variant="h5" gutterBottom>
               Your Transactions
             </Typography>
@@ -242,7 +251,8 @@ const Home = () => {
                       <TableCell>Amount</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Origin Tx</TableCell>
-                      <TableCell>Target Tx</TableCell>
+                        <TableCell>Target Tx</TableCell>
+                        <TableCell>Created At</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -268,6 +278,7 @@ const Home = () => {
                             </MuiLink>
                           ) : 'N/A'}
                         </TableCell>
+                        <TableCell>{new Date(transaction.createdAt).toLocaleString()}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
