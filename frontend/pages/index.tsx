@@ -30,7 +30,6 @@ import ArbitrumIcon from '../public/arbitrum-icon.svg';
 import OptimismIcon from '../public/optimism-icon.svg';
 import Image from 'next/image';
 
-
 const chains: { [key: string]: number } = {
   arbitrumSepolia: 421614,
   optimismSepolia: 11155420,
@@ -40,7 +39,6 @@ const explorers: { [key: string]: string } = {
   arbitrum: 'https://sepolia.arbiscan.io/tx/',
   optimism: 'https://sepolia-optimistic.etherscan.io/tx/',
 };
-
 
 const Home = () => {
   const [amount, setAmount] = useState<string>('');
@@ -72,14 +70,14 @@ const Home = () => {
           await switchNetwork(selectedChain);
         }
       } catch (error) {
-        console.error("Error checking wallet connection: ", error);
+        console.error('Error checking wallet connection: ', error);
       }
     }
   };
 
   const connectWallet = async () => {
     if (!(window as any).ethereum) {
-      alert("Please install MetaMask to use this feature!");
+      alert('Please install MetaMask to use this feature!');
       return;
     }
 
@@ -89,7 +87,7 @@ const Home = () => {
       setUserAddress(ethers.getAddress(accounts[0]));
       await switchNetwork(selectedChain);
     } catch (error) {
-      console.error("Error connecting wallet: ", error);
+      console.error('Error connecting wallet: ', error);
     }
   };
 
@@ -102,9 +100,9 @@ const Home = () => {
       });
     } catch (error: any) {
       if (error.code === 4902) {
-        alert("Network not found in MetaMask, please add it manually.");
+        alert('Network not found in MetaMask, please add it manually.');
       } else {
-        console.error("Error switching network: ", error);
+        console.error('Error switching network: ', error);
       }
     }
   };
@@ -114,10 +112,15 @@ const Home = () => {
       alert('Please enter an amount to bridge');
       return;
     }
+
     const latestTransaction = transactions.sort((a, b) => b.createdAt - a.createdAt)[0];
     if (latestTransaction && Date.now() - new Date(latestTransaction.createdAt).getTime() < 60000) {
-      const diff = Date.now() - new Date(latestTransaction.createdAt).getTime()
-      alert('Please wait at least one minute between transactions. Try again in ' + (60 - Math.floor(diff / 1000)) + ' seconds.');
+      const diff = Date.now() - new Date(latestTransaction.createdAt).getTime();
+      alert(
+        'Please wait at least one minute between transactions. Try again in ' +
+          (60 - Math.floor(diff / 1000)) +
+          ' seconds.'
+      );
       return;
     }
 
@@ -125,22 +128,57 @@ const Home = () => {
     setError(null);
 
     try {
+      // Fetch the provider based on the selected chain
+      const rpcUrl =
+        selectedChain === 'arbitrumSepolia'
+          ? process.env.NEXT_PUBLIC_ARBITRUM_RPC_URL
+          : process.env.NEXT_PUBLIC_OPTIMISM_RPC_URL;
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+
+      // Fetch the token contract address based on the selected chain
+      const tokenAddress =
+        selectedChain === 'arbitrumSepolia'
+          ? process.env.NEXT_PUBLIC_ARBITRUM_TOKEN_ADDRESS
+          : process.env.NEXT_PUBLIC_OPTIMISM_TOKEN_ADDRESS;
+
+      // Create a contract instance
+      const tokenContract = new ethers.Contract(
+        tokenAddress!,
+        [
+          // Only the balanceOf ABI is needed for this check
+          'function balanceOf(address owner) view returns (uint256)',
+        ],
+        provider
+      );
+
+      // Get the user's token balance
+      const userBalance = await tokenContract.balanceOf(ethers.getAddress(userAddress));
+      const parsedAmount = ethers.parseEther(amount);
+      // Check if the user has enough balance
+      if (userBalance < parsedAmount) {
+        alert('Insufficient balance to bridge the specified amount.');
+        setLoading(false);
+        return;
+      }
+
+      // If balance is sufficient, proceed with the bridge request
       const body = {
         user: userAddress,
         chain: selectedChain.replace('Sepolia', ''),
-        amount: parseInt(ethers.parseEther(amount).toString()),
-      }
+        amount: parseInt(parsedAmount.toString()),
+      };
       const response = await axios.post('https://relay-bridge-production.up.railway.app/api/bridge/burn', body);
+
       if (response.status === 200) {
-        setMsg("Bridge Request Sent!");
+        setMsg('Bridge Request Sent!');
         setTimeout(() => setMsg(null), 5000);
-        await fetchTransactions()
+        await fetchTransactions();
       } else {
         alert(response.data);
       }
     } catch (error) {
-      console.error("Error bridging tokens: ", error);
-      setError("Error bridging tokens. Please try again.");
+      console.error('Error bridging tokens: ', error);
+      setError('Error bridging tokens. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -148,14 +186,18 @@ const Home = () => {
 
   const fetchTransactions = useCallback(async () => {
     try {
-      const response = await axios.get(`https://relay-bridge-production.up.railway.app/api/bridge/transactions/${userAddress}`);
+      const limit = 5;
+      const page = 0;
+      const response = await axios.get(
+        `https://relay-bridge-production.up.railway.app/api/bridge/transactions/${userAddress}?limit=${limit}&page=${page}`
+      );
       setTransactions(response.data);
     } catch (error) {
-      console.error("Error fetching transactions: ", error);
-      setError("Error fetching transactions. Please try again.");
+      console.error('Error fetching transactions: ', error);
+      setError('Error fetching transactions. Please try again.');
     }
   }, [userAddress]);
-  
+
   useEffect(() => {
     const interval = setInterval(async () => {
       if (transactions.filter((tx) => tx.status === 'pending').length > 0) {
@@ -182,13 +224,29 @@ const Home = () => {
   };
 
   const renderChainIcon = (chain: string) => {
-  if (chain === 'arbitrum') {
-    return <Image src={ArbitrumIcon} alt="Arbitrum" width={24} height={24} style={{ verticalAlign: 'middle', marginRight: '4px' }} />;
-  } else if (chain === 'optimism') {
-    return <Image src={OptimismIcon} alt="Optimism" width={24} height={24} style={{ verticalAlign: 'middle', marginRight: '4px' }} />;
-  }
-  return null;
-};
+    if (chain === 'arbitrum') {
+      return (
+        <Image
+          src={ArbitrumIcon}
+          alt="Arbitrum"
+          width={24}
+          height={24}
+          style={{ verticalAlign: 'middle', marginRight: '4px' }}
+        />
+      );
+    } else if (chain === 'optimism') {
+      return (
+        <Image
+          src={OptimismIcon}
+          alt="Optimism"
+          width={24}
+          height={24}
+          style={{ verticalAlign: 'middle', marginRight: '4px' }}
+        />
+      );
+    }
+    return null;
+  };
 
   return (
     <Container maxWidth="md">
@@ -238,8 +296,8 @@ const Home = () => {
             >
               {loading ? <CircularProgress size={24} /> : 'Bridge Tokens'}
             </Button>
-              {error && <Alert severity="error">{error}</Alert>}
-              {msg && <Alert severity="success">{msg}</Alert>}
+            {error && <Alert severity="error">{error}</Alert>}
+            {msg && <Alert severity="success">{msg}</Alert>}
             <Typography variant="h5" gutterBottom>
               Your Transactions
             </Typography>
@@ -251,8 +309,8 @@ const Home = () => {
                       <TableCell>Amount</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Origin Tx</TableCell>
-                        <TableCell>Target Tx</TableCell>
-                        <TableCell>Created At</TableCell>
+                      <TableCell>Target Tx</TableCell>
+                      <TableCell>Created At</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -262,21 +320,33 @@ const Home = () => {
                         <TableCell>{renderStatusIcon(transaction.status)}</TableCell>
                         <TableCell>
                           {transaction.originTxHash ? (
-                            <MuiLink href={getExplorerLink(transaction.originChain, transaction.originTxHash)} target="_blank" rel="noopener">
+                            <MuiLink
+                              href={getExplorerLink(transaction.originChain, transaction.originTxHash)}
+                              target="_blank"
+                              rel="noopener"
+                            >
                               {renderChainIcon(transaction.originChain)}
                               <LinkIcon style={{ verticalAlign: 'middle', marginRight: '4px' }} />
                               {transaction.originTxHash.slice(0, 4)}...{transaction.originTxHash.slice(-4)}
                             </MuiLink>
-                          ) : 'N/A'}
+                          ) : (
+                            'N/A'
+                          )}
                         </TableCell>
                         <TableCell>
                           {transaction.targetTxHash ? (
-                            <MuiLink href={getExplorerLink(transaction.targetChain, transaction.targetTxHash)} target="_blank" rel="noopener">
+                            <MuiLink
+                              href={getExplorerLink(transaction.targetChain, transaction.targetTxHash)}
+                              target="_blank"
+                              rel="noopener"
+                            >
                               {renderChainIcon(transaction.targetChain)}
                               <LinkIcon style={{ verticalAlign: 'middle', marginRight: '4px' }} />
                               {transaction.targetTxHash.slice(0, 4)}...{transaction.targetTxHash.slice(-4)}
                             </MuiLink>
-                          ) : 'N/A'}
+                          ) : (
+                            'N/A'
+                          )}
                         </TableCell>
                         <TableCell>{new Date(transaction.createdAt).toLocaleString()}</TableCell>
                       </TableRow>
