@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import bridgeRoutes from './routes/bridge';
 import { bridgeService } from './services/BridgeService';
 import * as dotenv from 'dotenv';
@@ -11,6 +12,7 @@ connectDB();
 const app = express();
 
 app.use(express.json());
+app.use(cors());
 app.use('/api/bridge', bridgeRoutes);
 
 const PORT = process.env.PORT || 3000;
