@@ -16,7 +16,7 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: process.env.OPTISCAN_API_KEY,
     customChains: [
       {
         network: "optimismSepolia",

@@ -8,7 +8,9 @@ async function main() {
   console.log("Deploying contracts with the account:", deployer.address);
 
   const MockERC20 = await ethers.getContractFactory("MockERC20");
-  const token = await MockERC20.deploy("Mock Token", "MCK");
+  const trustedForwarder = process.env.TRUSTED_FORWARDER_ADDRESS!;
+  
+  const token = await MockERC20.deploy("Mock Token", "MCK", trustedForwarder);
 
   await token.waitForDeployment();
 
