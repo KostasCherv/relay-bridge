@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import {
   Container,
@@ -138,7 +138,7 @@ const Home = () => {
     }
   };
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       const response = await axios.get(`https://relay-bridge-production.up.railway.app/api/bridge/transactions/${userAddress}`);
       setTransactions(response.data);
@@ -146,7 +146,16 @@ const Home = () => {
       console.error("Error fetching transactions: ", error);
       setError("Error fetching transactions. Please try again.");
     }
-  };
+  }, [userAddress]);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (transactions.filter((tx) => tx.status === 'pending').length > 0) {
+        fetchTransactions();
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [transactions, fetchTransactions]);
 
   const getExplorerLink = (chain: string, txHash: string) => {
     return explorers[chain] + txHash;
