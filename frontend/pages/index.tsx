@@ -40,15 +40,15 @@ const explorers: { [key: string]: string } = {
   optimism: 'https://sepolia-optimistic.etherscan.io/tx/',
 };
 
-const tokenDetails = {
+const tokenDetails: { [key: string]: { address: string; symbol: string; decimals: number; image: string } } = {
   arbitrumSepolia: {
-    address: process.env.NEXT_PUBLIC_ARBITRUM_TOKEN_ADDRESS,
+    address: process.env.NEXT_PUBLIC_ARBITRUM_TOKEN_ADDRESS!,
     symbol: 'MCK',
     decimals: 18,
     image: 'https://example.com/token-image.png', // Replace with the actual image URL for your token
   },
   optimismSepolia: {
-    address: process.env.NEXT_PUBLIC_OPTIMISM_TOKEN_ADDRESS,
+    address: process.env.NEXT_PUBLIC_OPTIMISM_TOKEN_ADDRESS!,
     symbol: 'MCK',
     decimals: 18,
     image: 'https://example.com/token-image.png', // Replace with the actual image URL for your token
@@ -177,13 +177,21 @@ const Home = () => {
         return;
       }
 
+
       // If balance is sufficient, proceed with the bridge request
-      const body = {
+      const data = {
         user: userAddress,
         chain: selectedChain.replace('Sepolia', ''),
         amount: parseInt(parsedAmount.toString()),
       };
-      const response = await axios.post('https://relay-bridge-production.up.railway.app/api/bridge/burn', body);
+      const accounts = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
+      const signature = await (window as any).ethereum.request({
+        method: 'personal_sign',
+        params: [accounts[0], JSON.stringify(data)],
+      });
+      const response = await axios.post('https://relay-bridge-production.up.railway.app/api/bridge/burn', {
+        data, signature
+      });
 
       if (response.status === 200) {
         setMsg('Bridge Request Sent!');
