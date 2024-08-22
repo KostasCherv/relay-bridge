@@ -3,6 +3,7 @@ import { config } from '../config';
 import MockERC20ABI from '../abis/MockERC20ABI.json';
 import { CallWithERC2771Request, GelatoRelay, TaskState } from '@gelatonetwork/relay-sdk';
 import { BridgeRecord, IBridgeRecord, TaskStatus, BridgeStatus } from '../models/BridgeRecord';
+import { queueService } from './QueueService'; // Import the new QueueService
 
 const relay = new GelatoRelay();
 
@@ -14,6 +15,7 @@ class BridgeService {
 
   constructor() {
     this.contracts = this.initializeContracts();
+    this.startConsumingEvents(); // Start consuming events on initialization
   }
 
   private initializeContracts() {
@@ -37,21 +39,36 @@ class BridgeService {
     contract.on('Transfer', async (from: string, to: string, amount: BigInt, event: ethers.ContractEventPayload) => {
       if (to === ethers.ZeroAddress) {
         console.log(`Burn detected on ${chain}: ${amount.toString()} from ${from}`);
-        await this.handleBurnEvent(chain, from, amount, event.log.transactionHash);
+        await queueService.publishEvent('burn', { chain, from, amount: amount.toString(), transactionHash: event.log.transactionHash });
       } else if (from === ethers.ZeroAddress) {
         console.log(`Mint detected on ${chain}: ${amount.toString()} to ${to}`);
-        await this.updateUserTasks(to);
+        await queueService.publishEvent('mint', { chain, to, amount: amount.toString(), transactionHash: event.log.transactionHash });
       }
     });
   }
 
-  private async handleBurnEvent(chain: string, user: string, amount: BigInt, originTxHash: string) {
+  private async startConsumingEvents() {
+    await queueService.consumeEvent(async (type, payload) => {
+      switch (type) {
+        case 'burn':
+          await this.handleBurnEvent(payload.chain, payload.from, payload.amount, payload.transactionHash);
+          break;
+        case 'mint':
+          await this.updateUserTasks(payload.to);
+          break;
+        default:
+          console.error('Unknown event type:', type);
+      }
+    });
+  }
+
+  private async handleBurnEvent(chain: string, user: string, amount: string, originTxHash: string) {
     await this.updateUserTasks(user);
     const targetChain = this.getTargetChain(chain);
 
     const bridgeRecord = await BridgeRecord.findOne({ originTxHash });
     if (bridgeRecord) {
-      const mintAmount = await this.calculateMintAmountAfterFee(amount.toString(), targetChain);
+      const mintAmount = await this.calculateMintAmountAfterFee(amount, targetChain);
       const response = await this.sendMintTask(mintAmount, targetChain, user);
       bridgeRecord.targetTaskId = response.taskId;
       bridgeRecord.targetTaskStatus = TaskStatus.PENDING;

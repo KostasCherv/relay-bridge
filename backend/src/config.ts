@@ -18,4 +18,5 @@ export const config = {
       provider: new ethers.JsonRpcProvider(process.env.OPTIMISM_RPC_URL || ''),
     },
   },
+  redisUrl: process.env.REDIS_URL || '',
 };
