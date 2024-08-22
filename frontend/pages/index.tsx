@@ -43,6 +43,7 @@ const explorers: { [key: string]: string } = {
 const Home = () => {
   const [amount, setAmount] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [faucetLoading, setFaucetLoading] = useState<boolean>(false);
   const [selectedChain, setSelectedChain] = useState<string>('arbitrumSepolia');
   const [walletConnected, setWalletConnected] = useState<boolean>(false);
   const [userAddress, setUserAddress] = useState<string>('');
@@ -184,6 +185,34 @@ const Home = () => {
     }
   };
 
+  const handleFaucet = async () => {
+    setFaucetLoading(true);
+    setError(null);
+
+    try {
+      const body = {
+        user: userAddress,
+        chain: selectedChain.replace('Sepolia', ''),
+        amount: parseInt(ethers.parseEther('10').toString()),
+      };
+
+      const response = await axios.post('https://relay-bridge-production.up.railway.app/api/bridge/mint', body);
+
+      if (response.status === 200) {
+        setMsg('Faucet Request Successful! 10 tokens have been minted to your account.');
+        setTimeout(() => setMsg(null), 5000);
+        await fetchTransactions();
+      } else {
+        alert(response.data);
+      }
+    } catch (error) {
+      console.error('Error getting faucet tokens:', error);
+      setError('Error getting faucet tokens. Please try again.');
+    } finally {
+      setFaucetLoading(false);
+    }
+  };
+
   const fetchTransactions = useCallback(async () => {
     try {
       const limit = 5;
@@ -295,6 +324,15 @@ const Home = () => {
               sx={{ marginBottom: '1rem' }}
             >
               {loading ? <CircularProgress size={24} /> : 'Bridge Tokens'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleFaucet}
+              disabled={faucetLoading}
+              fullWidth
+              sx={{ marginBottom: '1rem' }}
+            >
+              {faucetLoading ? <CircularProgress size={24} /> : 'Get Faucet Tokens'}
             </Button>
             {error && <Alert severity="error">{error}</Alert>}
             {msg && <Alert severity="success">{msg}</Alert>}
