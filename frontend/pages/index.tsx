@@ -40,6 +40,21 @@ const explorers: { [key: string]: string } = {
   optimism: 'https://sepolia-optimistic.etherscan.io/tx/',
 };
 
+const tokenDetails = {
+  arbitrumSepolia: {
+    address: process.env.NEXT_PUBLIC_ARBITRUM_TOKEN_ADDRESS,
+    symbol: 'MCK',
+    decimals: 18,
+    image: 'https://example.com/token-image.png', // Replace with the actual image URL for your token
+  },
+  optimismSepolia: {
+    address: process.env.NEXT_PUBLIC_OPTIMISM_TOKEN_ADDRESS,
+    symbol: 'MCK',
+    decimals: 18,
+    image: 'https://example.com/token-image.png', // Replace with the actual image URL for your token
+  },
+};
+
 const Home = () => {
   const [amount, setAmount] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -213,6 +228,30 @@ const Home = () => {
     }
   };
 
+  const handleAddTokenToMetaMask = async () => {
+    try {
+      const token = tokenDetails[selectedChain];
+
+      await (window as any).ethereum.request({
+        method: 'wallet_watchAsset',
+        params: {
+          type: 'ERC20',
+          options: {
+            address: token.address,
+            symbol: token.symbol,
+            decimals: token.decimals,
+            image: token.image,
+          },
+        },
+      });
+      setMsg('Token added to MetaMask!');
+      setTimeout(() => setMsg(null), 5000);
+    } catch (error) {
+      console.error('Error adding token to MetaMask:', error);
+      setError('Error adding token to MetaMask. Please try again.');
+    }
+  };
+
   const fetchTransactions = useCallback(async () => {
     try {
       const limit = 5;
@@ -333,6 +372,14 @@ const Home = () => {
               sx={{ marginBottom: '1rem' }}
             >
               {faucetLoading ? <CircularProgress size={24} /> : 'Get Faucet Tokens'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleAddTokenToMetaMask}
+              fullWidth
+              sx={{ marginBottom: '1rem' }}
+            >
+              Add Token to MetaMask
             </Button>
             {error && <Alert severity="error">{error}</Alert>}
             {msg && <Alert severity="success">{msg}</Alert>}
