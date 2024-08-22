@@ -51,11 +51,20 @@ class BridgeService {
 
     const bridgeRecord = await BridgeRecord.findOne({ originTxHash });
     if (bridgeRecord) {
-      const response = await this.sendMintTask(amount, targetChain, user);
+      const mintAmount = await this.calculateMintAmountAfterFee(amount.toString(), targetChain);
+      const response = await this.sendMintTask(mintAmount, targetChain, user);
       bridgeRecord.targetTaskId = response.taskId;
       bridgeRecord.targetTaskStatus = TaskStatus.PENDING;
       await bridgeRecord.save();
     }
+  }
+
+  public async calculateMintAmountAfterFee(amount: string, chain: string): Promise<bigint> {
+    const contract = this.contracts[chain];
+    const burnFee = parseInt(await contract.burnFeePct()); // 100 means 1%
+    const mintAmount: bigint = BigInt(amount) - (BigInt(amount) * BigInt(burnFee) / BigInt(10000));
+
+    return mintAmount;
   }
 
   public async sendBurnTask(amount: BigInt, chain: string, user: string) {

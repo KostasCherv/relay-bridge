@@ -15,6 +15,11 @@
 				"internalType": "address",
 				"name": "trustedForwarder",
 				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_burnFeePct",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "nonpayable",
@@ -315,6 +320,19 @@
 	},
 	{
 		"inputs": [],
+		"name": "burnFeePct",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "decimals",
 		"outputs": [
 			{
@@ -405,6 +423,19 @@
 			}
 		],
 		"name": "setBridgeOperator",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_burnFeePct",
+				"type": "uint256"
+			}
+		],
+		"name": "setBurnFeePct",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
