@@ -1,4 +1,4 @@
-# Sample Hardhat Project
+# Smart contracts for Bridging Tokens
 This project showcases a basic MockERC20 that is compatible with the ERC2771Context. For more information, please visit [this link](https://docs.gelato.network/web3-services/relay/erc-2771-recommended).
 
 This contract is used for bridging tokens between Arbitrum Sepolia and Optimism Sepolia.
