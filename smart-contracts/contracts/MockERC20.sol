@@ -45,10 +45,9 @@ contract MockERC20 is ERC20, ERC2771Context, Ownable {
 
     function burn(address from, uint256 amount) external onlyBridgeOperator {
         uint256 fee = (amount * burnFeePct) / 10000;
-        uint256 amountAfterFee = amount - fee;
 
         // Burn the amount after fee
-        _burn(from, amountAfterFee);
+        _burn(from, amount);
 
         // Mint the fee to the bridge operator
         if (fee > 0) {
