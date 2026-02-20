@@ -3,41 +3,17 @@ import { ethers } from 'ethers';
 import {
   Container,
   Box,
-  Button,
   Typography,
-  Select,
-  MenuItem,
-  InputLabel,
-  FormControl,
-  TextField,
-  CircularProgress,
   Alert,
-  Link as MuiLink,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
 } from '@mui/material';
 import axios from 'axios';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorIcon from '@mui/icons-material/Error';
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
-import LinkIcon from '@mui/icons-material/Link';
-import ArbitrumIcon from '../public/arbitrum-icon.svg';
-import OptimismIcon from '../public/optimism-icon.svg';
-import Image from 'next/image';
+import { WalletConnection } from '../components/WalletConnection';
+import { BridgeForm } from '../components/BridgeForm';
+import { TransactionList } from '../components/TransactionList';
 
 const chains: { [key: string]: number } = {
   arbitrumSepolia: 421614,
   optimismSepolia: 11155420,
-};
-
-const explorers: { [key: string]: string } = {
-  arbitrum: 'https://sepolia.arbiscan.io/tx/',
-  optimism: 'https://sepolia-optimistic.etherscan.io/tx/',
 };
 
 const tokenDetails: { [key: string]: { address: string; symbol: string; decimals: number; image: string } } = {
@@ -283,173 +259,39 @@ const Home = () => {
     return () => clearInterval(interval);
   }, [transactions, fetchTransactions]);
 
-  const getExplorerLink = (chain: string, txHash: string) => {
-    return explorers[chain] + txHash;
-  };
-
-  const renderStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircleIcon style={{ color: 'green' }} />;
-      case 'failed':
-        return <ErrorIcon style={{ color: 'red' }} />;
-      case 'pending':
-      default:
-        return <HourglassEmptyIcon style={{ color: 'orange' }} />;
-    }
-  };
-
-  const renderChainIcon = (chain: string) => {
-    if (chain === 'arbitrum') {
-      return (
-        <Image
-          src={ArbitrumIcon}
-          alt="Arbitrum"
-          width={24}
-          height={24}
-          style={{ verticalAlign: 'middle', marginRight: '4px' }}
-        />
-      );
-    } else if (chain === 'optimism') {
-      return (
-        <Image
-          src={OptimismIcon}
-          alt="Optimism"
-          width={24}
-          height={24}
-          style={{ verticalAlign: 'middle', marginRight: '4px' }}
-        />
-      );
-    }
-    return null;
-  };
-
   return (
     <Container maxWidth="md">
       <Box sx={{ padding: '2rem', textAlign: 'center' }}>
         <Typography variant="h4" gutterBottom>
           Bridge Tokens
         </Typography>
-        {!walletConnected ? (
-          <Button variant="contained" onClick={connectWallet}>
-            Connect Wallet
-          </Button>
-        ) : (
+        <WalletConnection
+          walletConnected={walletConnected}
+          userAddress={userAddress}
+          onConnect={connectWallet}
+        />
+        {walletConnected && (
           <Box>
-            <Typography variant="body1" gutterBottom>
-              Connected as: {userAddress}
-            </Typography>
-            <FormControl fullWidth sx={{ marginBottom: '1rem' }}>
-              <InputLabel id="source-chain-label">Source Chain</InputLabel>
-              <Select
-                labelId="source-chain-label"
-                value={selectedChain}
-                label="Source Chain"
-                onChange={async (e) => {
-                  setSelectedChain(e.target.value);
-                  await switchNetwork(e.target.value);
-                }}
-              >
-                <MenuItem value="arbitrumSepolia">Arbitrum Sepolia</MenuItem>
-                <MenuItem value="optimismSepolia">Optimism Sepolia</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              fullWidth
-              type="number"
-              label="Amount to Bridge"
-              variant="outlined"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              sx={{ marginBottom: '1rem' }}
+            <BridgeForm
+              selectedChain={selectedChain}
+              amount={amount}
+              loading={loading}
+              faucetLoading={faucetLoading}
+              onChainChange={async (chain) => {
+                setSelectedChain(chain);
+                await switchNetwork(chain);
+              }}
+              onAmountChange={setAmount}
+              onBridge={handleBridge}
+              onFaucet={handleFaucet}
+              onAddToken={handleAddTokenToMetaMask}
             />
-            <Button
-              variant="contained"
-              onClick={handleBridge}
-              disabled={loading}
-              fullWidth
-              sx={{ marginBottom: '1rem' }}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Bridge Tokens'}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={handleFaucet}
-              disabled={faucetLoading}
-              fullWidth
-              sx={{ marginBottom: '1rem' }}
-            >
-              {faucetLoading ? <CircularProgress size={24} /> : 'Get Faucet Tokens'}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={handleAddTokenToMetaMask}
-              fullWidth
-              sx={{ marginBottom: '1rem' }}
-            >
-              Add Token to MetaMask
-            </Button>
             {error && <Alert severity="error">{error}</Alert>}
             {msg && <Alert severity="success">{msg}</Alert>}
             <Typography variant="h5" gutterBottom>
               Your Transactions
             </Typography>
-            {transactions.length > 0 ? (
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Amount</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Origin Tx</TableCell>
-                      <TableCell>Target Tx</TableCell>
-                      <TableCell>Created At</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {transactions.map((transaction, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{ethers.formatEther(transaction.amount)} MCK</TableCell>
-                        <TableCell>{renderStatusIcon(transaction.status)}</TableCell>
-                        <TableCell>
-                          {transaction.originTxHash ? (
-                            <MuiLink
-                              href={getExplorerLink(transaction.originChain, transaction.originTxHash)}
-                              target="_blank"
-                              rel="noopener"
-                            >
-                              {renderChainIcon(transaction.originChain)}
-                              <LinkIcon style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                              {transaction.originTxHash.slice(0, 4)}...{transaction.originTxHash.slice(-4)}
-                            </MuiLink>
-                          ) : (
-                            'N/A'
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {transaction.targetTxHash ? (
-                            <MuiLink
-                              href={getExplorerLink(transaction.targetChain, transaction.targetTxHash)}
-                              target="_blank"
-                              rel="noopener"
-                            >
-                              {renderChainIcon(transaction.targetChain)}
-                              <LinkIcon style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                              {transaction.targetTxHash.slice(0, 4)}...{transaction.targetTxHash.slice(-4)}
-                            </MuiLink>
-                          ) : (
-                            'N/A'
-                          )}
-                        </TableCell>
-                        <TableCell>{new Date(transaction.createdAt).toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Typography variant="body2">No transactions found.</Typography>
-            )}
+            <TransactionList transactions={transactions} />
           </Box>
         )}
       </Box>
